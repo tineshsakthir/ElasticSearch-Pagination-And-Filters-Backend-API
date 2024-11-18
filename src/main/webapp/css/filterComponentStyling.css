@@ -1,0 +1,73 @@
+.filter-buttons { display: none; margin-top: 10px; }
+.filter-buttons button { margin: 5px; }
+.filter-container { margin-top: 20px; }
+.filter-field { margin-bottom: 15px; }
+
+
+/* Style for the entire filter container */
+/* Style the main form container */
+.filter-container {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+/* Wrap and align the filter sections */
+.filter-container > div {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    align-items: flex-start;
+}
+
+/* Style each filter field for wrapping layout */
+.filter-field {
+    flex: 1 1 calc(50% - 1rem); /* Two columns, each field taking half the row */
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    border-bottom: 1px solid #ccc;
+    padding-bottom: 0.5rem;
+}
+
+/* Fixed-width labels with right alignment */
+.filter-field label {
+    flex: 0 0 120px; /* Fixed width for label */
+    text-align: right;
+    margin-right: 0.5rem;
+    white-space: nowrap;
+}
+
+/* Style input fields */
+.filter-field input {
+    width: 30vw;
+    flex: 1;
+}
+
+/* Style the remove button */
+.filter-field button {
+    margin-left: 0.5rem;
+    padding: 0.25rem 0.75rem;
+    background-color: #d9534f;
+    color: white;
+    border: none;
+    cursor: pointer;
+    border-radius: 3px;
+}
+
+/* Make the submit button align to content width */
+button[type="submit"] {
+    align-self: flex-start;
+    padding: 0.5rem 1.5rem;
+    background-color: #5cb85c;
+    color: white;
+    border: none;
+    cursor: pointer;
+    border-radius: 3px;
+    font-weight: bold;
+    margin-top: 1rem; /* Adds space above the button */
+}
+
+.filter-container button[type="submit"]:hover {
+    background-color: #0056b3;
+}
