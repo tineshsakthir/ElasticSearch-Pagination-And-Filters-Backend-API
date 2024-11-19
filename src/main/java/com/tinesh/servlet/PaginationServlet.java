@@ -138,7 +138,7 @@ public class PaginationServlet extends HttpServlet {
 
 
         int pageNumber = Integer.parseInt(request.getParameter(PAGE_NUMBER) != null && Integer.parseInt(request.getParameter("pageNumber"))>0 ? request.getParameter("pageNumber") : "1");
-        int pageSize = 100;
+        int pageSize = 2000;
         SearchRequest searchRequest = new SearchRequest(INDEX_NAME);
         SearchSourceBuilder sourceBuilder = new SearchSourceBuilder();
 
@@ -319,7 +319,6 @@ public class PaginationServlet extends HttpServlet {
                 .map(dateTime -> dateTime + ":00Z")
                 .toArray(String[]::new);
     }
-
 
 
     @Override
