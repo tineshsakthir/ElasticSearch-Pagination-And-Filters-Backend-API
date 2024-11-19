@@ -15,6 +15,7 @@ import org.elasticsearch.common.xcontent.XContentFactory;
 import org.elasticsearch.common.xcontent.XContentType;
 import org.elasticsearch.index.query.BoolQueryBuilder;
 import org.elasticsearch.index.query.QueryBuilders;
+import org.elasticsearch.index.query.RangeQueryBuilder;
 import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.search.SearchHits;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
@@ -130,26 +131,28 @@ public class PaginationServlet extends HttpServlet {
         System.out.println("Received To: " + Arrays.toString(receiveds_to));
 
 
+        String[] adjustedReceivedsFrom = adjustDateTimeFormat(receiveds_from);
+        String[] adjustedReceivedsTo = adjustDateTimeFormat(receiveds_to);
+        String[] adjustedReceiveds = adjustDateTimeFormat(receiveds);
+
+
 
         int pageNumber = Integer.parseInt(request.getParameter(PAGE_NUMBER) != null && Integer.parseInt(request.getParameter("pageNumber"))>0 ? request.getParameter("pageNumber") : "1");
-
         int pageSize = 100;
         SearchRequest searchRequest = new SearchRequest(INDEX_NAME);
-
-
-
         SearchSourceBuilder sourceBuilder = new SearchSourceBuilder();
 
-
-        BoolQueryBuilder boolQueryBuilder = new BoolQueryBuilder() ;
-        boolQueryBuilder.must();
-
-
-        sourceBuilder.query(QueryBuilders.matchAllQuery());
+        BoolQueryBuilder boolQueryBuilder = buildElasticsearchQuery(senders, recipients, messageTraceId, subjects, fromIps, toIps, sizes, sizes_from, sizes_to, adjustedReceiveds, adjustedReceivedsFrom, adjustedReceivedsTo) ;
+        sourceBuilder.query(boolQueryBuilder) ;
 
         sourceBuilder.sort(new FieldSortBuilder(RECEIVED).order(SortOrder.ASC));
-
         sourceBuilder.size(pageSize);
+
+        String action = request.getParameter("action") ;
+        if(action!= null && action.equals("filter")){
+            pageNumber = 1 ;
+            RECEIVED_DATETIME_FOR_PAGINATION.clear();
+        }
 
         if(pageNumber > 1){
             Object[] searchAfterValues = {RECEIVED_DATETIME_FOR_PAGINATION.get(pageNumber-2)};
@@ -195,6 +198,128 @@ public class PaginationServlet extends HttpServlet {
         RequestDispatcher dispatcher = request.getRequestDispatcher("/displayResults.jsp") ;
         dispatcher.forward(request,response);
     }
+
+
+    public BoolQueryBuilder buildElasticsearchQuery(
+            String[] senders,
+            String[] recipients,
+            String[] messageTraceId,
+            String[] subjects,
+            String[] fromIps,
+            String[] toIps,
+            String[] sizes,
+            String[] sizes_from,
+            String[] sizes_to,
+            String[] adjustedReceiveds,
+            String[] adjustedReceivedsFrom,
+            String[] adjustedReceivedsTo) {
+
+        BoolQueryBuilder boolQueryBuilder = QueryBuilders.boolQuery();
+
+        // Must query for SENDER
+        if (senders != null && senders.length > 0) {
+            BoolQueryBuilder senderQuery = QueryBuilders.boolQuery();
+            for (String sender : senders) {
+                senderQuery.should(QueryBuilders.matchQuery("SENDER", sender));
+            }
+            boolQueryBuilder.must(senderQuery);
+        }
+
+        // Must query for RECIPIENT
+        if (recipients != null && recipients.length > 0) {
+            BoolQueryBuilder recipientQuery = QueryBuilders.boolQuery();
+            for (String recipient : recipients) {
+                recipientQuery.should(QueryBuilders.matchQuery("RECIPIENT", recipient));
+            }
+            boolQueryBuilder.must(recipientQuery);
+        }
+
+        // Must query for MESSAGE_TRACE_ID
+        if (messageTraceId != null && messageTraceId.length > 0) {
+            BoolQueryBuilder traceIdQuery = QueryBuilders.boolQuery();
+            for (String traceId : messageTraceId) {
+                traceIdQuery.should(QueryBuilders.matchQuery("MESSAGE_TRACE_ID", traceId));
+            }
+            boolQueryBuilder.must(traceIdQuery);
+        }
+
+        // Must query for SUBJECT
+        if (subjects != null && subjects.length > 0) {
+            BoolQueryBuilder subjectQuery = QueryBuilders.boolQuery();
+            for (String subject : subjects) {
+                subjectQuery.should(QueryBuilders.matchQuery("SUBJECT", subject));
+            }
+            boolQueryBuilder.must(subjectQuery);
+        }
+
+        // Must query for FROM_IP
+        if (fromIps != null && fromIps.length > 0) {
+            BoolQueryBuilder fromIpQuery = QueryBuilders.boolQuery();
+            for (String fromIp : fromIps) {
+                fromIpQuery.should(QueryBuilders.matchQuery("FROM_IP", fromIp));
+            }
+            boolQueryBuilder.must(fromIpQuery);
+        }
+
+        // Must query for TO_IP
+        if (toIps != null && toIps.length > 0) {
+            BoolQueryBuilder toIpQuery = QueryBuilders.boolQuery();
+            for (String toIp : toIps) {
+                toIpQuery.should(QueryBuilders.matchQuery("TO_IP", toIp));
+            }
+            boolQueryBuilder.must(toIpQuery);
+        }
+
+        // Must query for exact SIZE values
+        if (sizes != null && sizes.length > 0) {
+            BoolQueryBuilder sizeQuery = QueryBuilders.boolQuery();
+            for (String size : sizes) {
+                sizeQuery.should(QueryBuilders.matchQuery("SIZE", size));
+            }
+            boolQueryBuilder.must(sizeQuery);
+        }
+
+        // Range must query for SIZE (from-to)
+        if (sizes_from != null && sizes_to != null && sizes_from.length == sizes_to.length) {
+            for (int i = 0; i < sizes_from.length; i++) {
+                RangeQueryBuilder sizeRangeQuery = QueryBuilders.rangeQuery("SIZE")
+                        .from(sizes_from[i])
+                        .to(sizes_to[i]);
+                boolQueryBuilder.must(sizeRangeQuery);
+            }
+        }
+
+        // Range must query for RECEIVED dates (adjustedReceivedsFrom to adjustedReceivedsTo)
+        if (adjustedReceivedsFrom != null && adjustedReceivedsTo != null && adjustedReceivedsFrom.length == adjustedReceivedsTo.length) {
+            for (int i = 0; i < adjustedReceivedsFrom.length; i++) {
+                RangeQueryBuilder receivedRangeQuery = QueryBuilders.rangeQuery("RECEIVED")
+                        .from(adjustedReceivedsFrom[i])
+                        .to(adjustedReceivedsTo[i]);
+                boolQueryBuilder.must(receivedRangeQuery);
+            }
+        }
+
+        // Must query for specific RECEIVED dates
+        if (adjustedReceiveds != null && adjustedReceiveds.length > 0) {
+            BoolQueryBuilder receivedDateQuery = QueryBuilders.boolQuery();
+            for (String receivedDate : adjustedReceiveds) {
+                receivedDateQuery.should(QueryBuilders.matchQuery("RECEIVED", receivedDate));
+            }
+            boolQueryBuilder.must(receivedDateQuery);
+        }
+
+        return boolQueryBuilder;
+    }
+
+
+
+    public String[] adjustDateTimeFormat(String[] dateTimes) {
+        if (dateTimes == null) return null;
+        return Arrays.stream(dateTimes)
+                .map(dateTime -> dateTime + ":00Z")
+                .toArray(String[]::new);
+    }
+
 
 
     @Override
