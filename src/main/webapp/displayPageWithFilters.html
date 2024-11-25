@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+</head>
+<body>
+<div class="container">
+  <form id="filter-form">
+    <div id="filter-tab">
+      <div class="filter">
+        <select name="column">
+          <option value="SENDER">SENDER</option>
+          <option value="RECIPIENT">RECIPIENT</option>
+          <option value="MESSAGE_TRACE_ID">MESSAGE_TRACE_ID</option>
+        </select>
+        <select name="condition">
+          <option value="contains">contains</option>
+        </select>
+        <input type="text" name="value" placeholder="Enter value">
+        <span onclick="addFilter()">+</span>
+      </div>
+    </div>
+    <button type="button" id="submit-filter">Apply filters</button>
+  </form>
+</div>
+<script>
+  document.getElementById("submit-filter").addEventListener("click", async () => {
+    // Gather filter data
+    const filters = [];
+    document.querySelectorAll("#filter-tab .filter").forEach((filter) => {
+      const column = filter.querySelector("select[name='column']").value;
+      const condition = filter.querySelector("select[name='condition']").value;
+      const value = filter.querySelector("input[name='value']").value;
+
+      if (column && condition && value) {
+        filters.push({ column, condition, value });
+      }
+    });
+
+    if (filters.length === 0) {
+      alert("Please add at least one filter.");
+      return;
+    }
+
+    // Convert data to JSON
+    const requestData = { filters };
+
+    try {
+      // Send JSON to backend
+      const response = await fetch("http://localhost:8080/filterPagination", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(requestData),
+      });
+
+      // Parse JSON response
+      if (response.ok) {
+        const responseData = await response.json();
+        console.log("Response Data:", responseData);
+        alert("Filters applied successfully. Check console for response.");
+      } else {
+        console.error("Error:", response.statusText);
+        alert("Failed to apply filters.");
+      }
+    } catch (error) {
+      console.error("Error:", error);
+      alert("Error sending request.");
+    }
+  });
+
+  // Add functionality to dynamically add filter rows
+  function addFilter() {
+    const filterTab = document.getElementById("filter-tab");
+    const newFilter = document.querySelector(".filter").cloneNode(true);
+    newFilter.querySelector("input[name='value']").value = "";
+    filterTab.appendChild(newFilter);
+  }
+</script>
+
+</body>
+</html>

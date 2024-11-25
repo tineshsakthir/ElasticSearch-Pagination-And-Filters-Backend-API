@@ -113,8 +113,7 @@
 
 <!-- Filter Fields Container -->
 <%-- Don't need to pass the page number for this form, by default picks the page number 1 in the pagination servlet--%>
-<form id="filter-container" class="filter-container" action="${pageContext.request.contextPath}/pagination"
-      method="get">
+<form id="filter-container" class="filter-container" action="${pageContext.request.contextPath}/pagination" method="get">
       <input type="hidden" name="action" value="filter">
 
       <div id="SENDERS">
@@ -315,7 +314,7 @@
 <%-- Start : Next page and previous page features :) starts --%>
 <div class="pagination-container">
       <c:if test="${currentPage > 1}">
-            <form action="${pageContext.request.contextPath}/pagination" method="post">
+            <form action="${pageContext.request.contextPath}/pagination" method="get">
                   <input type="hidden" name="action" value="pagination">
                         <%--Sender Start--%>
                   <%
@@ -471,7 +470,7 @@
       </c:if>
 
       <c:if test="${hasNextPage == true}">
-            <form action="${pageContext.request.contextPath}/pagination" method="post">
+            <form action="${pageContext.request.contextPath}/pagination" method="get">
                   <input type="hidden" name="action" value="pagination">
 
 
@@ -621,9 +620,6 @@
                         }
                   %>
                         <%--Received_from and Received_to End--%>
-
-
-
                   <input type="hidden" name="pageNumber" value="${currentPage + 1}">
                   <button type="submit" class="pagination-button next-button">Next</button>
             </form>

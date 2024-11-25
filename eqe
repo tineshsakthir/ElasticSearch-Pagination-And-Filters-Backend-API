@@ -1,0 +1,17 @@
+[33mcommit 0177d2342405e7d92148ae29e9054e1c7e2077eb[m[33m ([m[1;36mHEAD -> [m[1;32mmaster[m[33m)[m
+Author: tineshsakthir <112597619+tineshsakthir@users.noreply.github.com>
+Date:   Tue Nov 19 11:08:17 2024 +0530
+
+    fix : The next and previous page buttons are made to work now with the filters(previously only working without filters). how ? Created hidden fields in side the next button form and previous button form. next ? Need to do a lot of refactoring(lot of code redundancy).
+
+[33mcommit 9ae9b6dea6f46f2c9a5e74699a45e85fd4b01b76[m
+Author: tineshsakthir <112597619+tineshsakthir@users.noreply.github.com>
+Date:   Tue Nov 19 07:10:29 2024 +0530
+
+    feat : All filters are working with the help BooleanQueryBuilder, but need to change the structure of the recipient in the index itself. I think need to convert it into array in the index, so that I can separate multiple recipients separately
+
+[33mcommit 9eedd56ea5ada912e07957f7a4bb4e7c4aee4442[m
+Author: tineshsakthir <112597619+tineshsakthir@users.noreply.github.com>
+Date:   Mon Nov 18 23:36:20 2024 +0530
+
+    feat : Added the filter after the request, response cycle succesfully

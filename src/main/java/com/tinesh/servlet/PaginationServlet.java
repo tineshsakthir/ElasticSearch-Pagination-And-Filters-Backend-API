@@ -101,7 +101,6 @@ public class PaginationServlet extends HttpServlet {
 
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-
         // Get the array of values for each field from the request
         String[] senders = request.getParameterValues("SENDER[]");
         String[] recipients = request.getParameterValues("RECIPIENT[]");
@@ -130,15 +129,25 @@ public class PaginationServlet extends HttpServlet {
         System.out.println("Received From: " + Arrays.toString(receiveds_from));
         System.out.println("Received To: " + Arrays.toString(receiveds_to));
 
-
+        // Adjusting the dateTime format to feed into the elastic search API
         String[] adjustedReceivedsFrom = adjustDateTimeFormat(receiveds_from);
         String[] adjustedReceivedsTo = adjustDateTimeFormat(receiveds_to);
         String[] adjustedReceiveds = adjustDateTimeFormat(receiveds);
 
-
-
+        // Getting the Page Number
         int pageNumber = Integer.parseInt(request.getParameter(PAGE_NUMBER) != null && Integer.parseInt(request.getParameter("pageNumber"))>0 ? request.getParameter("pageNumber") : "1");
         int pageSize = 2000;
+
+        // We need to clear the RECEIVED_DATETIME_FOR_PAGINATION, when the action = filter, because starting from page number 1
+        String action = request.getParameter("action") ;
+        if(action!= null && action.equals("filter")){
+            pageNumber = 1 ;
+            RECEIVED_DATETIME_FOR_PAGINATION.clear();
+        }
+
+        // Start Building the request query
+
+        // Building  the SearchRequest for elastic search
         SearchRequest searchRequest = new SearchRequest(INDEX_NAME);
         SearchSourceBuilder sourceBuilder = new SearchSourceBuilder();
 
@@ -148,12 +157,7 @@ public class PaginationServlet extends HttpServlet {
         sourceBuilder.sort(new FieldSortBuilder(RECEIVED).order(SortOrder.ASC));
         sourceBuilder.size(pageSize);
 
-        String action = request.getParameter("action") ;
-        if(action!= null && action.equals("filter")){
-            pageNumber = 1 ;
-            RECEIVED_DATETIME_FOR_PAGINATION.clear();
-        }
-
+        // Applying search after in the query
         if(pageNumber > 1){
             Object[] searchAfterValues = {RECEIVED_DATETIME_FOR_PAGINATION.get(pageNumber-2)};
             sourceBuilder.searchAfter(searchAfterValues);
@@ -161,21 +165,61 @@ public class PaginationServlet extends HttpServlet {
         searchRequest.source(sourceBuilder);
 
         SearchResponse searchResponse = client.search(searchRequest, RequestOptions.DEFAULT);
+        // End Building the request query and got the response
 
+/*The SearchResponse searchResponse syntax will be like below
+         *  {
+  "took" : 32,
+  "timed_out" : false,
+  "_shards" : {
+    "total" : 5,
+    "successful" : 5,
+    "skipped" : 0,
+    "failed" : 0
+  },
+  "hits" : {
+    "total" : 1800000,
+    "max_score" : null,
+    "hits" : [
+      {
+        "_index" : "mailtrace_index",
+        "_type" : "_doc",
+        "_id" : "0Y9FPpMBQK-XOA5TRY3L",
+        "_score" : null,
+        "_source" : {
+          "SENDER" : "linda.green@example.org",
+          "RECIPIENT" : "bcc:noah.wright@example.net",
+          "MESSAGE_TRACE_ID" : "ntQjwHTp55954062",
+          "SUBJECT" : "Order Status Update",
+          "FROM_IP" : "172.16.2.5",
+          "TO_IP" : "10.0.5.3",
+          "SIZE" : 3383,
+          "RECEIVED" : "2024-10-12T00:10:00Z"
+        }, -> hit.getSourceAsString() **** In the below code
+        "sort" : [
+          1728691800000,
+          "0Y9FPpMBQK-XOA5TRY3L"
+        ]
+      } -> hit (each hit) *** In below code
+    ] -> searchHits(Array of hits) *** In below code
+  } -> searchResponse.getHits() **** In below code
+} -> searchResponse **** In below code
+* **/
         List<String> results = new ArrayList<>();
         SearchHits searchHits = searchResponse.getHits() ;
         for (SearchHit hit : searchHits) {
             results.add(hit.getSourceAsString());
         }
 
+        // As per in the syntax, each source string is mapped with the MailTrace class with the help of Jackson Json converter.
         ObjectMapper objectMapper = new ObjectMapper();
         List<MailTrace> mailTraces = new ArrayList<>() ;
         for(String jsonString : results){
             MailTrace mailTrace = objectMapper.readValue(jsonString, MailTrace.class);
             mailTraces.add(mailTrace) ;
-//            System.out.println(mailTrace.toString());
         }
 
+        // To go to the previous page, we need to save the last element of the result
         if(!mailTraces.isEmpty() && RECEIVED_DATETIME_FOR_PAGINATION.size() < pageNumber ){
             MailTrace lastMessage = mailTraces.get(mailTraces.size() - 1) ;
             String datetimeStr = lastMessage.getRECEIVED();
@@ -191,10 +235,12 @@ public class PaginationServlet extends HttpServlet {
             RECEIVED_DATETIME_FOR_PAGINATION.add(timestampMillis) ;
         }
 
+        // Setting the attributes for transferring to the jsp
         request.setAttribute("mailTraces",mailTraces);
         request.setAttribute("currentPage", pageNumber);
         request.setAttribute("hasNextPage", searchResponse.getHits().getHits().length == pageSize);
 
+        // Dispatch the request, here request and response objects are also forwarded, which helps in persisting filters even after n number of request, response cycle
         RequestDispatcher dispatcher = request.getRequestDispatcher("/displayResults.jsp") ;
         dispatcher.forward(request,response);
     }
