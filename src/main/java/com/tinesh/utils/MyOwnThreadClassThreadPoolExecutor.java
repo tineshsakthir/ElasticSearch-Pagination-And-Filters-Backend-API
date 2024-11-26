@@ -16,7 +16,6 @@ import java.util.List;
 public class MyOwnThreadClassThreadPoolExecutor implements Runnable {
     private static final Object LOCK = new Object();
     private static final String LOG_FILE_PATH = "D:\\LogFolderForCSV\\logForMyThreads.txt";
-
     StringBuffer sb;
     boolean isWorkerThreadCreated = false;
     String CSV_FILE_PATH;
@@ -73,12 +72,14 @@ public class MyOwnThreadClassThreadPoolExecutor implements Runnable {
                 }
                 String[] fields = line.split(",");
                 if (fields.length >= 9) {
-                    String[] splittedRecipientAddresses = getSplittedRecipientAddress(fields[1], fields[7]);
 
-                    for (String splittedRecipientAddress : splittedRecipientAddresses) {
+                    String[] splittedRecipientEmails = getSplittedRecipientEmails(fields[1])  ;
+                    String[] spliitedRecipientTypes = getSplittedRecipientTypes(fields[7]) ;
+
+                    for (int i=0; i<spliitedRecipientTypes.length ; i++) {
                         String jsonData = String.format(
-                                "{\"SENDER\": \"%s\", \"RECIPIENT\": \"%s\", \"MESSAGE_TRACE_ID\": \"%s\", \"SUBJECT\": \"%s\", \"FROM_IP\": \"%s\", \"TO_IP\": \"%s\", \"SIZE\": %s, \"RECEIVED\": \"%s\"}",
-                                fields[0], splittedRecipientAddress, fields[2], fields[3], fields[4], fields[5],
+                                "{\"SENDER\": \"%s\", \"RECIPIENT\": \"%s\", \"RECIPIENT_TYPE\": \"%s\", \"MESSAGE_TRACE_ID\": \"%s\", \"SUBJECT\": \"%s\", \"FROM_IP\": \"%s\", \"TO_IP\": \"%s\", \"SIZE\": %s, \"RECEIVED\": \"%s\"}",
+                                fields[0], splittedRecipientEmails[i], spliitedRecipientTypes[i],  fields[2], fields[3], fields[4], fields[5],
                                 fields[6], fields[8]);
                         bulkRequestData.add("{ \"index\": { \"_index\": \"" + INDEX_NAME + "\", \"_type\": \"_doc\" } }");
                         bulkRequestData.add(jsonData);
@@ -87,6 +88,14 @@ public class MyOwnThreadClassThreadPoolExecutor implements Runnable {
             }
         }
         return bulkRequestData;
+    }
+
+    private static String[] getSplittedRecipientTypes(String recipientTypes) {
+        return recipientTypes.split(";") ;
+    }
+
+    private static String[] getSplittedRecipientEmails(String recipientEmails) {
+        return recipientEmails.split(";") ;
     }
 
     private static String[] getSplittedRecipientAddress(String recipients, String recipientTypes) {
