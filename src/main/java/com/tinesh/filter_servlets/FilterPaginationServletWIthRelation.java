@@ -1,5 +1,3 @@
-
-
 package com.tinesh.filter_servlets;
 
 import com.fasterxml.jackson.core.JsonParseException;
@@ -85,7 +83,7 @@ public class FilterPaginationServletWIthRelation extends HttpServlet {
                 if(indexToColumnTypeMap != null){
                     if(relations != null){
                         BoolQueryBuilder boolQueryBuilder = getRootQueryBuilder(filters, indexToColumnTypeMap, relations) ;
-                        System.out.println("**********************************\n\nBuilt BoolQuery : " + boolQueryBuilder+ "\n\n") ;
+                        System.out.println("\n\nBuilt BoolQuery : " + boolQueryBuilder+ "\n\n") ;
                         sourceBuilder.query(boolQueryBuilder) ;
                     }else{
                         System.out.println("Relations is null");
@@ -166,8 +164,7 @@ public class FilterPaginationServletWIthRelation extends HttpServlet {
         }
     }
 
-
-
+    private static final String AND_OPERATOR = "AND" ;
     public static BoolQueryBuilder getRootQueryBuilder(List<Map<String, String>> filters , Map<String, String> indexToColumnTypeMap,  List<String> relations) throws IOException {
         if (filters.isEmpty()) {
             // Return an empty bool query instead of matchAllQuery()
@@ -179,27 +176,47 @@ public class FilterPaginationServletWIthRelation extends HttpServlet {
         }
 
         BoolQueryBuilder rootQuery = QueryBuilders.boolQuery();
-        QueryBuilder currentQuery = getQueryBuilder(filters.get(0), indexToColumnTypeMap) ;
 
-        for (int i = 0; i < relations.size(); i++) {
-            String relation = relations.get(i);
-            QueryBuilder nextQuery = getQueryBuilder(filters.get(i + 1), indexToColumnTypeMap);
+        boolean[] processedFilters = new boolean[filters.size()] ;
 
-            if ("AND".equalsIgnoreCase(relation)) {
-                currentQuery = QueryBuilders.boolQuery()
-                        .must(currentQuery) // Add current query as must
-                        .must(nextQuery);  // Add the next query as must
-            } else if ("OR".equalsIgnoreCase(relation)) {
-                currentQuery = QueryBuilders.boolQuery()
-                        .should(currentQuery) // Add current query as should
-                        .should(nextQuery);  // Add the next query as should
-            } else {
-                throw new IllegalArgumentException("Unsupported relation: " + relation);
+        int p1 = 0 ;
+        while (p1 < relations.size()) {
+            if(relations.get(p1).equals(AND_OPERATOR)){
+                int p2 = p1 ;
+                processedFilters[p2] = true ; // For initial Filter
+                while((p2+1)<relations.size() && relations.get(p2+1).equals(AND_OPERATOR)){
+                    processedFilters[p2+1] = true ; // For other filters
+                    p2++ ;
+                }
+                processedFilters[p2+1] = true ; // For last Filter
+                QueryBuilder tempQuery = getAndQueryBuilders(filters, indexToColumnTypeMap, p1, p2) ;
+                rootQuery.should(tempQuery) ;
+                //Increment p1 upto p2
+                p1 = p2 ;
+            }
+            p1++ ;
+        }
+
+        for(int i=0; i<filters.size() ; i++){
+            if(!processedFilters[i]){
+                QueryBuilder tempQuery = getQueryBuilder(filters.get(i), indexToColumnTypeMap) ;
+                rootQuery.should(tempQuery) ;
             }
         }
-        // Attach the final query to the root bool query
-        rootQuery.must(currentQuery);
         return rootQuery;
+    }
+
+    private static QueryBuilder getAndQueryBuilders(List<Map<String, String>> filters , Map<String, String> indexToColumnTypeMap, int p1, int p2) throws IOException {
+        QueryBuilder currentQuery = getQueryBuilder(filters.get(p1), indexToColumnTypeMap) ;
+
+        for (int i = p1; i <= p2; i++) {
+            QueryBuilder nextQuery = getQueryBuilder(filters.get(i + 1), indexToColumnTypeMap);
+            currentQuery = QueryBuilders.boolQuery()
+                        .must(currentQuery) // Add current query as must
+                        .must(nextQuery);  // Add the next query as must
+        }
+
+        return currentQuery ;
     }
 
     private  void sendError(HttpServletResponse resp, String message) throws IOException {
@@ -274,9 +291,9 @@ public class FilterPaginationServletWIthRelation extends HttpServlet {
             case "ENDS WITH":
                 return QueryBuilders.wildcardQuery(columnInEs, ASTERISK + value);
             case "LIKE":
-                return QueryBuilders.wildcardQuery(columnInEs, ASTERISK + value.toString() + ASTERISK);
+                return QueryBuilders.wildcardQuery(columnInEs, value.toString() );
             case "NOT LIKE":
-                return QueryBuilders.boolQuery().mustNot(QueryBuilders.wildcardQuery(columnInEs,ASTERISK + value.toString() + ASTERISK));
+                return QueryBuilders.boolQuery().mustNot(QueryBuilders.wildcardQuery(columnInEs,value.toString()));
             case "IN":
                 return QueryBuilders.termsQuery(columnInEs, Arrays.asList(value.toString().split(",")));
             case "NOT IN":
@@ -314,11 +331,11 @@ public class FilterPaginationServletWIthRelation extends HttpServlet {
 
             case "LIKE":
                 // Uses wildcard query to match patterns; supports * and ?
-                return QueryBuilders.wildcardQuery(columnInEs+".keyword", ASTERISK + value.toString() + ASTERISK);
+                return QueryBuilders.wildcardQuery(columnInEs+".keyword",  value.toString());
 
             case "NOT LIKE":
                 // Negates the wildcard query result
-                return QueryBuilders.boolQuery().mustNot(QueryBuilders.wildcardQuery(columnInEs+".keyword", ASTERISK + value.toString() + ASTERISK));
+                return QueryBuilders.boolQuery().mustNot(QueryBuilders.wildcardQuery(columnInEs+".keyword", value.toString()));
 
             case "IN":
                 return QueryBuilders.termsQuery(columnInEs+".keyword", Arrays.asList(value.toString().split(",")));

@@ -106,6 +106,16 @@ public class TemplateCreatingServlet extends HttpServlet {
                 "            }\n" +
                 "          }\n" +
                 "        },\n" +
+                "        \"RECIPIENT_TYPE\": {\n" +
+                "          \"type\": \"keyword\",\n" +
+                "          \"normalizer\": \"lowercase_normalizer\",\n" +
+                "          \"fields\": {\n" +
+                "            \"text\": {\n" +
+                "              \"type\": \"text\",\n" +
+                "              \"analyzer\": \"lowercase_analyzer\"\n" +
+                "            }\n" +
+                "          }\n" +
+                "        },\n" +
                 "        \"MESSAGE_TRACE_ID\": {\n" +
                 "          \"type\": \"keyword\",\n" +
                 "          \"normalizer\": \"lowercase_normalizer\"\n" +
